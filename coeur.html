@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Heart Particles Animation</title>
+    <style>
+        /* CSS */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .overlay,
+        .prompt-overlay,
+        .background-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .background-text {
+            z-index: 1;
+            opacity: 0.12;
+            color: #ffb6c1;
+            font-size: clamp(4rem, 12vw, 12rem);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            font-weight: 900;
+            text-shadow: 0 0 60px rgba(255, 182, 193, 0.22);
+        }
+
+        .prompt-overlay {
+            background: rgba(0, 0, 0, 0.82);
+            pointer-events: auto;
+            z-index: 4;
+        }
+
+        .prompt-card {
+            padding: 2rem 2.5rem;
+            border-radius: 24px;
+            background: rgba(10, 10, 20, 0.92);
+            box-shadow: 0 0 60px rgba(255, 20, 147, 0.18);
+            backdrop-filter: blur(12px);
+            z-index: 3;
+        }
+
+        .overlay > div {
+            padding: 1rem 1.5rem;
+            background: transparent;
+            box-shadow: none;
+            z-index: 3;
+        }
+
+        .overlay h1,
+        .prompt-card h2 {
+            margin: 0;
+            padding: 0 1rem;
+            font-size: clamp(2rem, 4vw, 4rem);
+            color: #ffb6c1;
+            text-shadow: 0 0 20px rgba(255, 182, 193, 0.75), 0 0 30px rgba(255, 20, 147, 0.5);
+            letter-spacing: 0.08em;
+            line-height: 1.1;
+        }
+
+        .overlay span,
+        .prompt-card p {
+            display: block;
+            margin-top: 0.75rem;
+            font-size: clamp(1rem, 2vw, 1.3rem);
+            color: #f8f8ff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+        }
+
+        .prompt-card input {
+            width: 100%;
+            margin-top: 1.25rem;
+            padding: 0.9rem 1rem;
+            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            outline: none;
+        }
+
+        .prompt-card button {
+            margin-top: 1rem;
+            padding: 0.95rem 1.8rem;
+            font-size: 1rem;
+            color: #fff;
+            background: linear-gradient(135deg, #ff1493, #ff7eb9);
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .prompt-card button:hover {
+            transform: translateY(-2px);
+            opacity: 0.95;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .fireworks {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .firework-spark {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,20,147,0.9) 45%, transparent 75%);
+            filter: drop-shadow(0 0 12px rgba(255,20,147,0.9));
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.5);
+        }
+
+        .footer-message {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 2rem;
+            padding: 0 1rem;
+            font-size: clamp(1rem, 1.75vw, 1.4rem);
+            color: #ffedf0;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+        }
+
+        .gallery-container {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(20,10,25,0.95) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .gallery-container.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .gallery-slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .gallery-slide.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .slide-image {
+            max-width: 65vh;
+            max-height: 70vh;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(255, 20, 147, 0.3);
+        }
+
+        .slide-message {
+            text-align: center;
+            font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+            color: #ffb6c1;
+            text-shadow: 0 0 20px rgba(255, 182, 193, 0.5);
+            letter-spacing: 0.05em;
+            max-width: 85%;
+            line-height: 1.6;
+        }
+
+        .gallery-nav {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 0.8rem;
+            z-index: 10;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 182, 193, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background: #ff1493;
+            width: 28px;
+            border-radius: 999px;
+            box-shadow: 0 0 20px rgba(255, 20, 147, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="prompt-overlay" id="namePrompt">
+        <div class="prompt-card">
+            <h2>Entrez votre nom</h2>
+            <p>Avant de recevoir ce cœur, tape ton prénom ci-dessous.</p>
+            <form id="nameForm">
+                <input id="nameInput" type="text" placeholder="Ton nom ici" autocomplete="off" required />
+                <button type="submit">Voir le cœur</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="background-text hidden" id="backgroundText">Bonne chance ✨🍀</div>
+
+    <div class="fireworks hidden" id="fireworks"></div>
+
+    <div class="overlay hidden" id="heartOverlay">
+        <div>
+            <h1 id="heartTitle">Ce cœur pour toi pour te souhaiter bonne composition</h1>
+            <span id="heartSubtitle">bonne chance whitney</span>
+        </div>
+    </div>
+
+    <div class="footer-message hidden" id="footerMessage"></div>
+
+    <div class="gallery-container" id="galleryContainer">
+        <div class="gallery-slide" data-effect="fade">
+            <img src="file:///C:/Users/ALL%20MAKE%20PRO/OneDrive/Images/IMG-20260605-WA0014.jpg" class="slide-image" alt="Photo 1">
+            <div class="slide-message">Tu as la force de réussir ✨ Crois en toi, Whitney!</div>
+        </div>
+        <div class="gallery-slide" data-effect="slide-up">
+            <img src="file:///C:/Users/ALL%20MAKE%20PRO/OneDrive/Images/IMG-20260605-WA0015.jpg" class="slide-image" alt="Photo 2">
+            <div class="slide-message">Ton sourire illumine tout 🌟 Continue d'étinceler!</div>
+        </div>
+        <div class="gallery-slide" data-effect="zoom">
+            <img src="file:///C:/Users/ALL%20MAKE%20PRO/OneDrive/Images/IMG-20260605-WA0016.jpg" class="slide-image" alt="Photo 3">
+            <div class="slide-message">Tu es une personne extraordinaire 💖 Ne l'oublie jamais!</div>
+        </div>
+        <div class="gallery-slide" data-effect="slide-left">
+            <img src="file:///C:/Users/ALL%20MAKE%20PRO/OneDrive/Images/IMG-20260605-WA0017.jpg" class="slide-image" alt="Photo 4">
+            <div class="slide-message">Avec du courage, tout devient possible 🍀 Fais briller ta lumière!</div>
+        </div>
+        <div class="gallery-slide" data-effect="rotate">
+            <img src="file:///C:/Users/ALL%20MAKE%20PRO/OneDrive/Images/IMG-20260605-WA0018.jpg" class="slide-image" alt="Photo 5">
+            <div class="slide-message">Tu mérites le meilleur 👑 Réussis avec panache et fierté!</div>
+        </div>
+        <div class="gallery-slide" data-effect="scale-fade">
+            <img src="file:///C:/Users/ALL%20MAKE%20PRO/OneDrive/Images/IMG-20260605-WA0019.jpg" class="slide-image" alt="Photo 6">
+            <div class="slide-message">Tes rêves deviennent réalité 🎓 Je crois en toi, Whitney!</div>
+        </div>
+        <div class="gallery-nav" id="galleryNav"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        // JAVASCRIPT
+
+        // 1. Initialisation de base de Three.js (Scène, Caméra, Rendu)
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        camera.position.set(0, -0.3, 7);
+        camera.lookAt(0, 0, 0);
+
+        // 2. Création des particules (Le Cœur)
+        const particleCount = 10000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount; i++) {
+            const t = Math.random() * Math.PI * 2;
+            const baseX = 16 * Math.pow(Math.sin(t), 3);
+            const baseY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+            const depth = (Math.random() - 0.5) * 0.7;
+            const scatter = (Math.random() - 0.5) * 0.22;
+            const bump = (Math.random() - 0.5) * 0.3;
+
+            positions[i * 3] = (baseX + Math.cos(t) * scatter + bump) * 0.11;
+            positions[i * 3 + 1] = (baseY + Math.sin(t) * scatter + bump) * 0.11;
+            positions[i * 3 + 2] = depth;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const material = new THREE.PointsMaterial({
+            color: 0xff1493,
+            size: 0.045,
+            transparent: true,
+            opacity: 0.95,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const heartParticles = new THREE.Points(geometry, material);
+        heartParticles.scale.set(0.12, 0.12, 0.12);
+        heartParticles.visible = false;
+        scene.add(heartParticles);
+
+        const petalCount = 3200;
+        const petalGeometry = new THREE.BufferGeometry();
+        const petalPositions = new Float32Array(petalCount * 3);
+
+        for (let i = 0; i < petalCount; i++) {
+            const t = Math.random() * Math.PI * 2;
+            const baseX = 16 * Math.pow(Math.sin(t), 3);
+            const baseY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+            const offsetRadius = 0.15 + Math.pow(Math.random(), 3) * 0.28;
+            const offsetX = Math.cos(t) * offsetRadius + (Math.random() - 0.5) * 0.07;
+            const offsetY = Math.sin(t) * offsetRadius + (Math.random() - 0.5) * 0.07;
+            petalPositions[i * 3] = (baseX * 0.11 + offsetX);
+            petalPositions[i * 3 + 1] = (baseY * 0.11 + offsetY);
+            petalPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.28;
+        }
+
+        petalGeometry.setAttribute('position', new THREE.BufferAttribute(petalPositions, 3));
+
+        const petalMaterial = new THREE.PointsMaterial({
+            color: 0xff9ec4,
+            size: 0.036,
+            transparent: true,
+            opacity: 0.88,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const petalParticles = new THREE.Points(petalGeometry, petalMaterial);
+        petalParticles.visible = false;
+        scene.add(petalParticles);
+
+        // 3. Animation avec GSAP
+        const timeline = gsap.timeline({ paused: true, repeat: -1, repeatDelay: 0.7 });
+
+        timeline.to(heartParticles.scale, {
+            x: 2.2,
+            y: 2.2,
+            z: 2.2,
+            duration: 1.8,
+            ease: "elastic.out(1, 0.5)"
+        });
+
+        timeline.to(heartParticles.scale, {
+            x: 2.0,
+            y: 2.0,
+            z: 2.0,
+            duration: 1.2,
+            ease: "power2.inOut"
+        });
+
+        timeline.to(petalParticles.scale, {
+            x: 2.0,
+            y: 2.0,
+            z: 2.0,
+            duration: 2.5,
+            ease: "power2.out"
+        }, 0);
+
+        timeline.to(petalParticles.rotation, {
+            y: Math.PI * 2,
+            duration: 16,
+            ease: "none"
+        }, 0);
+
+        timeline.to(heartParticles.rotation, {
+            y: Math.PI * 2,
+            duration: 10,
+            ease: "none"
+        }, 0);
+
+        const namePrompt = document.getElementById('namePrompt');
+        const nameInput = document.getElementById('nameInput');
+        const nameForm = document.getElementById('nameForm');
+        const heartOverlay = document.getElementById('heartOverlay');
+        const heartTitle = document.getElementById('heartTitle');
+        const heartSubtitle = document.getElementById('heartSubtitle');
+        const footerMessage = document.getElementById('footerMessage');
+        const backgroundText = document.getElementById('backgroundText');
+        const fireworksContainer = document.getElementById('fireworks');
+        
+        const galleryContainer = document.getElementById('galleryContainer');
+        const galleryNav = document.getElementById('galleryNav');
+        const slides = document.querySelectorAll('.gallery-slide');
+        let currentSlide = 0;
+        let galleryInterval = null;
+        let isGalleryActive = false;
+
+        function launchFireworks() {
+            fireworksContainer.classList.remove('hidden');
+            for (let i = 0; i < 14; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'firework-spark';
+                const startX = window.innerWidth / 2 + (Math.random() - 0.5) * 120;
+                const startY = window.innerHeight / 2 + (Math.random() - 0.5) * 40;
+                spark.style.left = `${startX}px`;
+                spark.style.top = `${startY}px`;
+                fireworksContainer.appendChild(spark);
+
+                const endX = (Math.random() - 0.5) * 500;
+                const endY = (Math.random() - 0.75) * 380 - 120;
+                const size = 0.7 + Math.random() * 1.4;
+
+                gsap.fromTo(spark, {
+                    opacity: 1,
+                    scale: 0.6,
+                    x: 0,
+                    y: 0
+                }, {
+                    opacity: 0,
+                    scale: size,
+                    x: endX,
+                    y: endY,
+                    duration: 1.6 + Math.random() * 0.6,
+                    ease: 'power2.out',
+                    onComplete: () => spark.remove()
+                });
+            }
+        }
+
+        slides.forEach((slide, index) => {
+            const dot = document.createElement('div');
+            dot.className = 'dot';
+            if (index === 0) dot.classList.add('active');
+            dot.addEventListener('click', () => goToSlide(index));
+            galleryNav.appendChild(dot);
+        });
+
+        function animateSlideEntry(slide, effect) {
+            const img = slide.querySelector('.slide-image');
+            const msg = slide.querySelector('.slide-message');
+            
+            gsap.killTweensOf([img, msg]);
+            
+            switch(effect) {
+                case 'fade':
+                    gsap.fromTo([img, msg], { opacity: 0 }, { opacity: 1, duration: 0.9, stagger: 0.25 });
+                    break;
+                case 'slide-up':
+                    gsap.fromTo(img, { y: 100, opacity: 0 }, { y: 0, opacity: 1, duration: 0.9, ease: 'power2.out' });
+                    gsap.fromTo(msg, { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, delay: 0.25 });
+                    break;
+                case 'zoom':
+                    gsap.fromTo(img, { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.1, ease: 'elastic.out(1, 0.6)' });
+                    gsap.fromTo(msg, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.8, delay: 0.3 });
+                    break;
+                case 'slide-left':
+                    gsap.fromTo(img, { x: -120, opacity: 0, rotate: -10 }, { x: 0, opacity: 1, rotate: 0, duration: 0.9, ease: 'power2.out' });
+                    gsap.fromTo(msg, { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, delay: 0.2 });
+                    break;
+                case 'rotate':
+                    gsap.fromTo(img, { rotation: -20, opacity: 0, scale: 0.85 }, { rotation: 0, opacity: 1, scale: 1, duration: 1.1, ease: 'back.out' });
+                    gsap.fromTo(msg, { rotation: 15, opacity: 0 }, { rotation: 0, opacity: 1, duration: 0.8, delay: 0.25 });
+                    break;
+                case 'scale-fade':
+                    gsap.fromTo(img, { scale: 1.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.2, ease: 'power2.out' });
+                    gsap.fromTo(msg, { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 1, delay: 0.35 });
+                    break;
+            }
+        }
+
+        function goToSlide(index) {
+            const effect = slides[index].dataset.effect;
+            const dots = document.querySelectorAll('.dot');
+            
+            slides.forEach(s => s.classList.remove('active'));
+            dots.forEach(d => d.classList.remove('active'));
+            
+            slides[index].classList.add('active');
+            dots[index].classList.add('active');
+            currentSlide = index;
+            
+            animateSlideEntry(slides[index], effect);
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % slides.length;
+            goToSlide(currentSlide);
+        }
+
+        function startGallery() {
+            isGalleryActive = true;
+            galleryContainer.classList.add('active');
+            goToSlide(0);
+            galleryInterval = setInterval(nextSlide, 5500);
+        }
+
+        nameForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const name = nameInput.value.trim() || 'toi';
+            heartTitle.textContent = `Ce cœur pour toi ${name} pour te souhaiter bonne composition`;
+            heartSubtitle.textContent = `bonne chance ${name} 🍀`;
+            footerMessage.textContent = `Je te souhaite bonne chance, ${name} ✨`; 
+            backgroundText.textContent = `Bonne chance, ${name} ✨🍀`;
+            namePrompt.classList.add('hidden');
+            heartOverlay.classList.remove('hidden');
+            footerMessage.classList.remove('hidden');
+            backgroundText.classList.remove('hidden');
+            heartParticles.visible = true;
+            petalParticles.visible = true;
+            timeline.play();
+            gsap.delayedCall(3.4, launchFireworks);
+            gsap.delayedCall(5.2, startGallery);
+        });
+
+        // 4. Boucle de rendu
+        function render() {
+            requestAnimationFrame(render);
+            renderer.render(scene, camera);
+        }
+
+        render();
+
+        // 5. Gestion du redimensionnement
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+    </script>
+</body>
+</html>
+
